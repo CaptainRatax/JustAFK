@@ -1,0 +1,18 @@
+# Time without a position change before a player is marked as AFK.
+# The default is 300 seconds (5 minutes).
+inactivity-timeout-seconds: 300
+
+announcements:
+  # Available values: all, ops, none
+  audience: all
+
+player-list:
+  # Adds a grey AFK duration before the player's existing tab-list name.
+  enabled: true
+  format: "&7[AFK {duration}]&r "
+
+messages:
+  # Legacy colour codes using '&' are supported.
+  command-prefix: "&8[&7JustAFK&8]&r "
+  became-afk: "&8[&7JustAFK&8]&r &7{player} is now AFK."
+  became-active: "&8[&7JustAFK&8]&r &7{player} is no longer AFK."
