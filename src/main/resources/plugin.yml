@@ -1,0 +1,37 @@
+name: JustAFK
+version: '${version}'
+main: pt.captainratax.justafk.JustAfkPlugin
+description: A lightweight and configurable AFK plugin.
+author: CaptainRatax
+website: https://captainratax.pt
+api-version: '26.2'
+folia-supported: true
+
+commands:
+  afk:
+    description: Toggle your AFK state or change another player's AFK state.
+    usage: /afk [player] [on|off|toggle]
+    permission: justafk.use
+  justafk:
+    description: View and change the JustAFK configuration.
+    usage: /justafk <help|status|reload|set>
+    aliases: [jafk]
+    permission: justafk.config
+
+permissions:
+  justafk.use:
+    description: Allows a player to use /afk for themselves.
+    default: true
+  justafk.others:
+    description: Allows a player to change another player's AFK state.
+    default: op
+  justafk.config:
+    description: Allows a player to view, reload, and change the configuration.
+    default: op
+  justafk.admin:
+    description: Grants every JustAFK permission.
+    default: op
+    children:
+      justafk.use: true
+      justafk.others: true
+      justafk.config: true
