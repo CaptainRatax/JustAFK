@@ -2,6 +2,8 @@ package pt.captainratax.justafk.config;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -33,8 +35,7 @@ public final class JustAfkConfig {
         }
 
         YamlConfiguration loaded = new YamlConfiguration();
-        // Keep comments loaded so command updates do not wipe the hints in config.yml.
-        loaded.options().parseComments(true);
+        enableCommentParsing(loaded);
         loaded.load(configFile);
 
         PluginSettings loadedSettings = readSettings(loaded);
@@ -82,6 +83,25 @@ public final class JustAfkConfig {
         }
 
         settings = updatedSettings;
+    }
+
+    private void enableCommentParsing(YamlConfiguration yaml) {
+        try {
+            Method parseComments = yaml.options().getClass().getMethod(
+                "parseComments",
+                boolean.class
+            );
+            parseComments.invoke(yaml.options(), true);
+        } catch (NoSuchMethodException ignored) {
+            // Older Bukkit versions cannot preserve comments when saving YAML.
+        } catch (IllegalAccessException exception) {
+            throw new IllegalStateException("Could not enable YAML comment parsing.", exception);
+        } catch (InvocationTargetException exception) {
+            Throwable cause = exception.getCause() == null
+                ? exception
+                : exception.getCause();
+            throw new IllegalStateException("Could not enable YAML comment parsing.", cause);
+        }
     }
 
     private PluginSettings readSettings(YamlConfiguration yaml) {

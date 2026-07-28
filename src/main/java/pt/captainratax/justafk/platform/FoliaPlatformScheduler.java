@@ -125,10 +125,13 @@ final class FoliaPlatformScheduler implements PlatformScheduler {
         String action,
         ReflectiveOperationException exception
     ) {
-        Throwable cause = exception instanceof InvocationTargetException invocation
-            && invocation.getCause() != null
-            ? invocation.getCause()
-            : exception;
+        Throwable cause = exception;
+        if (exception instanceof InvocationTargetException) {
+            InvocationTargetException invocation = (InvocationTargetException) exception;
+            if (invocation.getCause() != null) {
+                cause = invocation.getCause();
+            }
+        }
         return new IllegalStateException("Could not " + action + ".", cause);
     }
 }
