@@ -2,6 +2,8 @@ package pt.captainratax.justafk.command;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import org.bukkit.command.Command;
@@ -19,13 +21,13 @@ import pt.captainratax.justafk.util.CommandMessages;
  */
 public final class JustAfkCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> ROOT_OPTIONS = List.of(
+    private static final List<String> ROOT_OPTIONS = Arrays.asList(
         "help",
         "status",
         "reload",
         "set"
     );
-    private static final List<String> SETTING_OPTIONS = List.of(
+    private static final List<String> SETTING_OPTIONS = Arrays.asList(
         "timeout",
         "announcements",
         "playerlist"
@@ -51,15 +53,17 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        return switch (args[0].toLowerCase(Locale.ROOT)) {
-            case "status" -> showStatus(sender);
-            case "reload" -> reload(sender);
-            case "set" -> setValue(sender, args);
-            default -> {
+        switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "status":
+                return showStatus(sender);
+            case "reload":
+                return reload(sender);
+            case "set":
+                return setValue(sender, args);
+            default:
                 CommandMessages.send(sender, config, "&cUnknown subcommand. Use /justafk help.");
-                yield true;
-            }
-        };
+                return true;
+        }
     }
 
     private boolean showStatus(CommandSender sender) {
@@ -103,14 +107,22 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
 
         try {
             switch (setting) {
-                case "timeout" -> setTimeout(sender, value);
-                case "announcements" -> setAnnouncements(sender, value);
-                case "playerlist" -> setPlayerList(sender, value);
-                default -> CommandMessages.send(
-                    sender,
-                    config,
-                    "&cUnknown setting. Use timeout, announcements, or playerlist."
-                );
+                case "timeout":
+                    setTimeout(sender, value);
+                    break;
+                case "announcements":
+                    setAnnouncements(sender, value);
+                    break;
+                case "playerlist":
+                    setPlayerList(sender, value);
+                    break;
+                default:
+                    CommandMessages.send(
+                        sender,
+                        config,
+                        "&cUnknown setting. Use timeout, announcements, or playerlist."
+                    );
+                    break;
             }
         } catch (IOException exception) {
             CommandMessages.send(
@@ -166,11 +178,20 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
     }
 
     private Boolean parseBoolean(String value) {
-        return switch (value.toLowerCase(Locale.ROOT)) {
-            case "on", "true", "yes", "enabled" -> true;
-            case "off", "false", "no", "disabled" -> false;
-            default -> null;
-        };
+        switch (value.toLowerCase(Locale.ROOT)) {
+            case "on":
+            case "true":
+            case "yes":
+            case "enabled":
+                return Boolean.TRUE;
+            case "off":
+            case "false":
+            case "no":
+            case "disabled":
+                return Boolean.FALSE;
+            default:
+                return null;
+        }
     }
 
     private void sendHelp(CommandSender sender) {
@@ -198,14 +219,18 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
             return filter(SETTING_OPTIONS, args[1]);
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("set")) {
-            return switch (args[1].toLowerCase(Locale.ROOT)) {
-                case "timeout" -> filter(List.of("300"), args[2]);
-                case "announcements" -> filter(List.of("all", "ops", "none"), args[2]);
-                case "playerlist" -> filter(List.of("on", "off"), args[2]);
-                default -> List.of();
-            };
+            switch (args[1].toLowerCase(Locale.ROOT)) {
+                case "timeout":
+                    return filter(Collections.singletonList("300"), args[2]);
+                case "announcements":
+                    return filter(Arrays.asList("all", "ops", "none"), args[2]);
+                case "playerlist":
+                    return filter(Arrays.asList("on", "off"), args[2]);
+                default:
+                    return Collections.emptyList();
+            }
         }
-        return List.of();
+        return Collections.emptyList();
     }
 
     private List<String> filter(List<String> options, String input) {

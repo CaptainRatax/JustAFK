@@ -4,7 +4,7 @@ main: pt.captainratax.justafk.JustAfkPlugin
 description: A lightweight and configurable AFK plugin.
 author: CaptainRatax
 website: https://captainratax.pt
-api-version: '26.2'
+api-version: '1.13'
 folia-supported: true
 
 commands:

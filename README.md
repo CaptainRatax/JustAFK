@@ -1,9 +1,9 @@
 # JustAFK
 
-JustAFK is a lightweight AFK plugin for modern Minecraft servers. It marks
-players as AFK after a configurable period without a position change, provides
-manual and administrative commands, announces state changes, and can show the
-AFK duration in the player list.
+JustAFK is a lightweight AFK plugin for Bukkit-compatible Minecraft servers. It
+marks players as AFK after a configurable period without a position change,
+provides manual and administrative commands, announces state changes, and can
+show the AFK duration in the player list.
 
 ## Features
 
@@ -26,25 +26,38 @@ is marked as AFK, so a newly AFK player is shown as `[AFK 0m]`.
 
 | Server | Status |
 | --- | --- |
-| Paper 26.2 | Primary target |
-| Folia 26.2 | Folia-ready; see the validation note below |
-| Purpur 26.2 | Supported as a Paper fork |
-| Spigot / CraftBukkit 26.2 | Best-effort support through the Bukkit API |
+| Paper 1.8.8–26.2 | Compatible; runtime-tested at both endpoints, with 26.2 as the primary target |
+| Purpur 1.14.1–26.2 | Compatible Paper fork; runtime-tested on 26.2 |
+| Folia 1.19.4–26.2 | Uses Folia schedulers; runtime-tested on the latest public 26.1.2 build |
+| Spigot / CraftBukkit 1.8.8–26.2 | Compatibility-compiled against Spigot 1.8.8; best-effort runtime support |
 | Sponge | Not supported |
+| BungeeCord / Velocity / Waterfall | Not supported; these are proxy platforms |
 
 Sponge uses a different plugin API and lifecycle. Supporting it cleanly would
 require a separate platform module rather than a small compatibility layer.
 
-At the time of the 1.0.0 release, PaperMC had not published a Folia 26.2 build.
-The Folia scheduler path was therefore smoke-tested on the latest public Folia
-26.1.2 build with a temporary 26.1.2 test manifest. The released JAR keeps
-`api-version: 26.2` and is ready for the matching Folia release.
+Version 1.0.1 is built against Paper 26.2 and compatibility-compiled against
+Spigot 1.8.8. Both compilations must produce identical class files before the
+build passes. A 1.0.1 JAR from this source and build configuration was
+smoke-tested on Paper 1.8.8, Paper 26.2, Purpur 26.2, and the latest published
+Folia 26.1.2 build.
 
-Minecraft 26.2 servers require Java 25.
+At the time of the 1.0.1 release, PaperMC had not published a Folia 26.2 server
+build. The scheduler API used by JustAFK is available throughout the stated
+Folia range, and the 26.2 source branch is ready, but the latest runtime
+validation is Folia 26.1.2.
+
+The JAR uses Java 8 bytecode so it can run across the full version range. The
+server itself must still use the Java version required by its Minecraft
+version; Paper 26.2 requires Java 25.
+
+`api-version: 1.13` is intentional. Modern servers use the oldest supported API
+declaration instead of treating the plugin as legacy, while older Bukkit
+loaders ignore the field. This was verified with Paper 1.8.8.
 
 ## Installation
 
-1. Download or build `JustAFK-1.0.0.jar`.
+1. Download or build `JustAFK-1.0.1.jar`.
 2. Place the JAR in the server's `plugins` directory.
 3. Restart the server.
 4. Edit `plugins/JustAFK/config.yml` if needed, then run `/justafk reload`.
@@ -54,7 +67,7 @@ Minecraft 26.2 servers require Java 25.
 | Command | Description | Permission |
 | --- | --- | --- |
 | `/afk` | Toggle your own AFK state. | `justafk.use` |
-| `/afk <player> [on\|off\|toggle]` | Change an online player's AFK state. | `justafk.others` |
+| `/afk <player> [on\|off\|toggle]` | Change an online player's AFK state. | `justafk.use` and `justafk.others` |
 | `/justafk help` | Show the command list. | `justafk.config` |
 | `/justafk status` | Show the active configuration. | `justafk.config` |
 | `/justafk reload` | Reload `config.yml`. | `justafk.config` |
@@ -99,18 +112,27 @@ colour codes using `&` are supported.
 
 Configuration commands update `config.yml` immediately.
 
+YAML comments are preserved when the server configuration API supports comment
+parsing. Configuration values still load and save on older servers, but their
+YAML implementation may discard comments during a save.
+
 ## Building
 
-The project uses Gradle and the official Paper 26.2 build 84 stable API.
+The project uses Gradle 9.1 and a Java 25 toolchain. The release JAR is compiled
+against the official Paper 26.2 build 84 stable API and emits Java 8 bytecode.
 
 ```bash
 ./gradlew build
 ```
 
+The build also compiles the same source against Spigot 1.8.8, compares both
+class outputs, runs the unit tests, verifies the Java 8 class-file version, and
+checks that no runtime dependencies are declared.
+
 The plugin JAR will be created at:
 
 ```text
-build/libs/JustAFK-1.0.0.jar
+build/libs/JustAFK-1.0.1.jar
 ```
 
 Tests can be run separately with:

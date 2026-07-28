@@ -1,8 +1,11 @@
 package pt.captainratax.justafk.command;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -20,7 +23,7 @@ import pt.captainratax.justafk.util.CommandMessages;
  */
 public final class AfkCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> ACTIONS = List.of("on", "off", "toggle");
+    private static final List<String> ACTIONS = Arrays.asList("on", "off", "toggle");
 
     private final AfkManager afkManager;
     private final PlatformScheduler scheduler;
@@ -77,11 +80,14 @@ public final class AfkCommand implements CommandExecutor, TabCompleter {
 
         // The target may belong to a different Folia region.
         scheduler.runForPlayer(target, () -> {
-            boolean isAfk = switch (action) {
-                case "on" -> afkManager.setAfk(target, true);
-                case "off" -> afkManager.setAfk(target, false);
-                default -> afkManager.toggleAfk(target);
-            };
+            boolean isAfk;
+            if ("on".equals(action)) {
+                isAfk = afkManager.setAfk(target, true);
+            } else if ("off".equals(action)) {
+                isAfk = afkManager.setAfk(target, false);
+            } else {
+                isAfk = afkManager.toggleAfk(target);
+            }
 
             sendResult(
                 sender,
@@ -101,7 +107,7 @@ public final class AfkCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean toggleSelf(CommandSender sender) {
-        if (!(sender instanceof Player player)) {
+        if (!(sender instanceof Player)) {
             CommandMessages.send(
                 sender,
                 config,
@@ -110,6 +116,7 @@ public final class AfkCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        Player player = (Player) sender;
         boolean isAfk = afkManager.toggleAfk(player);
         CommandMessages.send(
             sender,
@@ -127,7 +134,8 @@ public final class AfkCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendResult(CommandSender sender, String message) {
-        if (sender instanceof Player player) {
+        if (sender instanceof Player) {
+            Player player = (Player) sender;
             scheduler.runForPlayer(
                 player,
                 () -> CommandMessages.send(player, config, "&7" + message)
@@ -145,19 +153,19 @@ public final class AfkCommand implements CommandExecutor, TabCompleter {
         String[] args
     ) {
         if (!sender.hasPermission("justafk.others")) {
-            return List.of();
+            return Collections.emptyList();
         }
 
         if (args.length == 1) {
             List<String> names = Bukkit.getOnlinePlayers().stream()
-                .map(Player::getName)
-                .toList();
+                .map(player -> player.getName())
+                .collect(Collectors.toList());
             return filter(names, args[0]);
         }
         if (args.length == 2) {
             return filter(ACTIONS, args[1]);
         }
-        return List.of();
+        return Collections.emptyList();
     }
 
     private List<String> filter(List<String> options, String input) {
