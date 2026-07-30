@@ -23,7 +23,7 @@ repositories {
     }
 }
 
-val legacySpigotApi by configurations.creating {
+val minimumSpigotApi by configurations.creating {
     isCanBeConsumed = false
     isCanBeResolved = true
 }
@@ -38,9 +38,13 @@ configurations.named("testCompileClasspath") {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.2.build.84-stable")
-    add(legacySpigotApi.name, "org.spigotmc:spigot-api:1.8.8-R0.1-SNAPSHOT")
+    add(
+        minimumSpigotApi.name,
+        "org.spigotmc:spigot-api:1.21.3-R0.1-SNAPSHOT"
+    )
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.13.4")
+    testImplementation("org.spigotmc:spigot-api:1.21.3-R0.1-SNAPSHOT")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -60,22 +64,22 @@ tasks.processResources {
 
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
-    options.release.set(8)
+    options.release.set(21)
     options.compilerArgs.add("-Xlint:-options")
 }
 
-val compileLegacyJava by tasks.registering(JavaCompile::class) {
-    description = "Checks the main source against the Spigot 1.8.8 API."
+val compileMinimumJava by tasks.registering(JavaCompile::class) {
+    description = "Checks the main source against the minimum Spigot 1.21.3 API."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     source = sourceSets.main.get().java
-    classpath = legacySpigotApi
-    destinationDirectory.set(layout.buildDirectory.dir("classes/java/legacy"))
+    classpath = minimumSpigotApi
+    destinationDirectory.set(layout.buildDirectory.dir("classes/java/minimum"))
 }
 
 val verifyApiBytecodeParity by tasks.registering {
-    description = "Compares the Paper 26.2 and Spigot 1.8.8 class files."
+    description = "Compares the Paper 26.2 and Spigot 1.21.3 class files."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(tasks.compileJava, compileLegacyJava)
+    dependsOn(tasks.compileJava, compileMinimumJava)
 
     doLast {
         fun classesIn(root: File): Map<String, ByteArray> =
@@ -88,30 +92,30 @@ val verifyApiBytecodeParity by tasks.registering {
         val paperClasses = classesIn(
             tasks.compileJava.get().destinationDirectory.get().asFile
         )
-        val legacyClasses = classesIn(
-            compileLegacyJava.get().destinationDirectory.get().asFile
+        val minimumClasses = classesIn(
+            compileMinimumJava.get().destinationDirectory.get().asFile
         )
 
         check(paperClasses.isNotEmpty()) {
             "The compatibility builds produced no class files."
         }
-        check(paperClasses.keys == legacyClasses.keys) {
-            "Paper and legacy API builds produced different class sets."
+        check(paperClasses.keys == minimumClasses.keys) {
+            "Paper and minimum API builds produced different class sets."
         }
 
         val differences = paperClasses.keys.filter { className ->
             !paperClasses.getValue(className).contentEquals(
-                legacyClasses.getValue(className)
+                minimumClasses.getValue(className)
             )
         }
         check(differences.isEmpty()) {
-            "Paper and legacy API bytecode differs for: ${differences.joinToString()}"
+            "Paper and minimum API bytecode differs for: ${differences.joinToString()}"
         }
     }
 }
 
 val verifyCompatibility by tasks.registering {
-    description = "Checks the JAR metadata and Java 8 bytecode target."
+    description = "Checks the JAR metadata and Java 21 bytecode target."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     dependsOn(tasks.jar)
 
@@ -135,7 +139,7 @@ val verifyCompatibility by tasks.registering {
                     }
                     classFile.readUnsignedShort()
                     val majorVersion = classFile.readUnsignedShort()
-                    if (majorVersion != 52) {
+                    if (majorVersion != 65) {
                         incompatibleClasses.add("${entry.name} (major $majorVersion)")
                     }
                 }
@@ -151,8 +155,8 @@ val verifyCompatibility by tasks.registering {
             check(pluginYml.contains("version: '$pluginVersion'")) {
                 "plugin.yml does not contain version $pluginVersion."
             }
-            check(pluginYml.contains("api-version: '1.13'")) {
-                "plugin.yml does not declare the 1.13 compatibility baseline."
+            check(pluginYml.contains("api-version: '1.21.3'")) {
+                "plugin.yml does not declare the 1.21.3 compatibility baseline."
             }
         }
 
@@ -160,7 +164,7 @@ val verifyCompatibility by tasks.registering {
             "The JAR contains no class files."
         }
         check(incompatibleClasses.isEmpty()) {
-            "The JAR contains classes that do not target Java 8: ${incompatibleClasses.joinToString()}"
+            "The JAR contains classes that do not target Java 21: ${incompatibleClasses.joinToString()}"
         }
     }
 }
@@ -183,7 +187,7 @@ tasks.test {
 
 tasks.check {
     dependsOn(
-        compileLegacyJava,
+        compileMinimumJava,
         verifyApiBytecodeParity,
         verifyCompatibility,
         verifyNoRuntimeDependencies

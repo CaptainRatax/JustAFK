@@ -6,7 +6,8 @@ enabled: true
 # Manual AFK commands remain available when this is disabled.
 automatic-afk-enabled: true
 
-# Time without a position change before a player is marked as AFK.
+# Time without movement input before a player is marked as AFK.
+# Movement input includes forward, backward, left, right, jump, sneak, and sprint.
 # The default is 300 seconds (5 minutes).
 inactivity-timeout-seconds: 300
 

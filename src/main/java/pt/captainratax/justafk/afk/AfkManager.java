@@ -6,8 +6,9 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
+import org.bukkit.Input;
 import org.bukkit.entity.Player;
 import pt.captainratax.justafk.config.AnnouncementAudience;
 import pt.captainratax.justafk.config.JustAfkConfig;
@@ -21,7 +22,7 @@ import pt.captainratax.justafk.util.DurationFormatter;
  */
 public final class AfkManager {
 
-    private final JustAfkConfig config;
+    private final Supplier<PluginSettings> settingsSupplier;
     private final PlatformScheduler scheduler;
     private final LongSupplier currentTimeMillis;
     private final Map<UUID, TrackedPlayer> trackedPlayers = new ConcurrentHashMap<>();
@@ -35,7 +36,18 @@ public final class AfkManager {
         PlatformScheduler scheduler,
         LongSupplier currentTimeMillis
     ) {
-        this.config = config;
+        this(config::settings, scheduler, currentTimeMillis);
+    }
+
+    AfkManager(
+        Supplier<PluginSettings> settingsSupplier,
+        PlatformScheduler scheduler,
+        LongSupplier currentTimeMillis
+    ) {
+        this.settingsSupplier = Objects.requireNonNull(
+            settingsSupplier,
+            "settingsSupplier"
+        );
         this.scheduler = scheduler;
         this.currentTimeMillis = currentTimeMillis;
     }
@@ -51,12 +63,8 @@ public final class AfkManager {
         }
     }
 
-    public void recordMovement(Player player, Location from, Location to) {
-        if (!config.settings().enabled()) {
-            return;
-        }
-
-        if (PositionSnapshot.from(from).equals(PositionSnapshot.from(to))) {
+    public void recordInput(Player player, Input input) {
+        if (!settings().enabled() || !PlayerInputActivity.isActive(input)) {
             return;
         }
 
@@ -64,7 +72,6 @@ public final class AfkManager {
         if (tracked == null) {
             return;
         }
-        tracked.lastPosition = PositionSnapshot.from(to);
         applyTransition(
             player,
             tracked,
@@ -74,7 +81,7 @@ public final class AfkManager {
     }
 
     public void checkOnlinePlayers() {
-        if (!config.settings().enabled()) {
+        if (!settings().enabled()) {
             return;
         }
 
@@ -108,13 +115,13 @@ public final class AfkManager {
     }
 
     public void refreshPlayerLists() {
-        if (!config.settings().enabled()) {
+        if (!settings().enabled()) {
             return;
         }
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             scheduler.runForPlayer(player, () -> {
-                if (!config.settings().enabled()) {
+                if (!settings().enabled()) {
                     return;
                 }
                 TrackedPlayer tracked = getOrRegister(player);
@@ -126,14 +133,14 @@ public final class AfkManager {
     }
 
     public void applyConfiguration() {
-        if (!config.settings().enabled()) {
+        if (!settings().enabled()) {
             clearTrackedPlayers();
             return;
         }
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             scheduler.runForPlayer(player, () -> {
-                if (!config.settings().enabled() || !player.isOnline()) {
+                if (!settings().enabled() || !player.isOnline()) {
                     return;
                 }
                 TrackedPlayer tracked = getOrRegister(player);
@@ -160,8 +167,8 @@ public final class AfkManager {
         }
     }
 
-    private void checkPlayer(Player player) {
-        PluginSettings settings = config.settings();
+    void checkPlayer(Player player) {
+        PluginSettings settings = settings();
         if (!settings.enabled() || !player.isOnline()) {
             return;
         }
@@ -171,13 +178,10 @@ public final class AfkManager {
             return;
         }
         long nowMillis = currentTimeMillis.getAsLong();
-        PositionSnapshot currentPosition = PositionSnapshot.from(player.getLocation());
 
         AfkTransition transition;
         boolean automaticTransition = false;
-        if (!currentPosition.equals(tracked.lastPosition)) {
-            // Looking around is ignored; only a position or world change counts as activity.
-            tracked.lastPosition = currentPosition;
+        if (PlayerInputActivity.isActive(player.getCurrentInput())) {
             transition = tracked.afkState.recordActivity(nowMillis);
         } else if (settings.automaticAfkEnabled()) {
             automaticTransition = true;
@@ -209,7 +213,7 @@ public final class AfkManager {
     }
 
     private TrackedPlayer getOrRegister(Player player) {
-        if (!config.settings().enabled()) {
+        if (!settings().enabled()) {
             return null;
         }
 
@@ -217,12 +221,11 @@ public final class AfkManager {
         TrackedPlayer tracked = trackedPlayers.computeIfAbsent(
             playerId,
             ignored -> new TrackedPlayer(
-                currentTimeMillis.getAsLong(),
-                PositionSnapshot.from(player.getLocation())
+                currentTimeMillis.getAsLong()
             )
         );
 
-        if (!config.settings().enabled()) {
+        if (!settings().enabled()) {
             if (trackedPlayers.remove(playerId, tracked)) {
                 restorePlayerListName(player, tracked);
             }
@@ -238,7 +241,7 @@ public final class AfkManager {
         boolean automaticTransition
     ) {
         if (
-            !config.settings().enabled()
+            !settings().enabled()
                 || trackedPlayers.get(player.getUniqueId()) != tracked
         ) {
             return;
@@ -271,7 +274,7 @@ public final class AfkManager {
     }
 
     private boolean automaticTransitionAllowed() {
-        PluginSettings settings = config.settings();
+        PluginSettings settings = settings();
         return settings.enabled() && settings.automaticAfkEnabled();
     }
 
@@ -293,7 +296,7 @@ public final class AfkManager {
         TrackedPlayer tracked,
         long nowMillis
     ) {
-        PluginSettings settings = config.settings();
+        PluginSettings settings = settings();
         if (
             !settings.enabled()
                 || trackedPlayers.get(player.getUniqueId()) != tracked
@@ -329,7 +332,7 @@ public final class AfkManager {
             return;
         }
 
-        settings = config.settings();
+        settings = settings();
         if (
             !settings.enabled()
                 || trackedPlayers.get(player.getUniqueId()) != tracked
@@ -379,7 +382,7 @@ public final class AfkManager {
         boolean becameAfk,
         boolean automaticTransition
     ) {
-        PluginSettings settings = config.settings();
+        PluginSettings settings = settings();
         if (
             !settings.enabled()
                 || (
@@ -406,7 +409,7 @@ public final class AfkManager {
             // Message delivery also runs on the recipient's scheduler under Folia.
             scheduler.runForPlayer(recipient, () -> {
                 if (
-                    config.settings().enabled()
+                    settings().enabled()
                         && (
                             !automaticTransition
                                 || automaticTransitionAllowed()
@@ -421,5 +424,9 @@ public final class AfkManager {
                 }
             });
         }
+    }
+
+    private PluginSettings settings() {
+        return settingsSupplier.get();
     }
 }
