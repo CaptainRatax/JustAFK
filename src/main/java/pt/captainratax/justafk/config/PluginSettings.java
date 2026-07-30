@@ -4,6 +4,8 @@ import java.util.Objects;
 
 public final class PluginSettings {
 
+    private final boolean enabled;
+    private final boolean automaticAfkEnabled;
     private final long inactivityTimeoutSeconds;
     private final AnnouncementAudience announcementAudience;
     private final boolean showInPlayerList;
@@ -13,6 +15,8 @@ public final class PluginSettings {
     private final String becameActiveMessage;
 
     public PluginSettings(
+        boolean enabled,
+        boolean automaticAfkEnabled,
         long inactivityTimeoutSeconds,
         AnnouncementAudience announcementAudience,
         boolean showInPlayerList,
@@ -38,6 +42,8 @@ public final class PluginSettings {
             );
         }
 
+        this.enabled = enabled;
+        this.automaticAfkEnabled = automaticAfkEnabled;
         this.inactivityTimeoutSeconds = inactivityTimeoutSeconds;
         this.announcementAudience = announcementAudience;
         this.showInPlayerList = showInPlayerList;
@@ -45,6 +51,14 @@ public final class PluginSettings {
         this.commandPrefix = commandPrefix;
         this.becameAfkMessage = becameAfkMessage;
         this.becameActiveMessage = becameActiveMessage;
+    }
+
+    public boolean enabled() {
+        return enabled;
+    }
+
+    public boolean automaticAfkEnabled() {
+        return automaticAfkEnabled;
     }
 
     public long inactivityTimeoutSeconds() {
@@ -85,7 +99,9 @@ public final class PluginSettings {
         }
 
         PluginSettings settings = (PluginSettings) other;
-        return inactivityTimeoutSeconds == settings.inactivityTimeoutSeconds
+        return enabled == settings.enabled
+            && automaticAfkEnabled == settings.automaticAfkEnabled
+            && inactivityTimeoutSeconds == settings.inactivityTimeoutSeconds
             && showInPlayerList == settings.showInPlayerList
             && announcementAudience == settings.announcementAudience
             && playerListFormat.equals(settings.playerListFormat)
@@ -97,6 +113,8 @@ public final class PluginSettings {
     @Override
     public int hashCode() {
         return Objects.hash(
+            enabled,
+            automaticAfkEnabled,
             inactivityTimeoutSeconds,
             announcementAudience,
             showInPlayerList,
@@ -110,7 +128,9 @@ public final class PluginSettings {
     @Override
     public String toString() {
         return "PluginSettings["
-            + "inactivityTimeoutSeconds=" + inactivityTimeoutSeconds
+            + "enabled=" + enabled
+            + ", automaticAfkEnabled=" + automaticAfkEnabled
+            + ", inactivityTimeoutSeconds=" + inactivityTimeoutSeconds
             + ", announcementAudience=" + announcementAudience
             + ", showInPlayerList=" + showInPlayerList
             + ", playerListFormat=" + playerListFormat

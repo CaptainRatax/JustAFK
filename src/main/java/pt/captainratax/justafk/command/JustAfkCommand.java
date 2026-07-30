@@ -28,6 +28,8 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
         "set"
     );
     private static final List<String> SETTING_OPTIONS = Arrays.asList(
+        "enabled",
+        "automatic-afk",
         "timeout",
         "announcements",
         "playerlist"
@@ -69,6 +71,10 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
     private boolean showStatus(CommandSender sender) {
         PluginSettings settings = config.settings();
         CommandMessages.send(sender, config, "&7Current configuration:");
+        sender.sendMessage("  JustAFK: " + enabledLabel(settings.enabled()));
+        sender.sendMessage(
+            "  Automatic AFK: " + enabledLabel(settings.automaticAfkEnabled())
+        );
         sender.sendMessage("  Timeout: " + settings.inactivityTimeoutSeconds() + " seconds");
         sender.sendMessage("  Announcements: " + settings.announcementAudience().configValue());
         sender.sendMessage(
@@ -80,7 +86,7 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
     private boolean reload(CommandSender sender) {
         try {
             config.reload();
-            afkManager.refreshPlayerLists();
+            afkManager.applyConfiguration();
             CommandMessages.send(sender, config, "&aConfiguration reloaded.");
         } catch (Exception exception) {
             CommandMessages.send(
@@ -97,7 +103,8 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
             CommandMessages.send(
                 sender,
                 config,
-                "&cUsage: /justafk set <timeout|announcements|playerlist> <value>"
+                "&cUsage: /justafk set "
+                    + "<enabled|automatic-afk|timeout|announcements|playerlist> <value>"
             );
             return true;
         }
@@ -107,6 +114,12 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
 
         try {
             switch (setting) {
+                case "enabled":
+                    setEnabled(sender, value);
+                    break;
+                case "automatic-afk":
+                    setAutomaticAfk(sender, value);
+                    break;
                 case "timeout":
                     setTimeout(sender, value);
                     break;
@@ -120,7 +133,8 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
                     CommandMessages.send(
                         sender,
                         config,
-                        "&cUnknown setting. Use timeout, announcements, or playerlist."
+                        "&cUnknown setting. Use enabled, automatic-afk, timeout, "
+                            + "announcements, or playerlist."
                     );
                     break;
             }
@@ -134,6 +148,27 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
             CommandMessages.send(sender, config, "&c" + exception.getMessage());
         }
         return true;
+    }
+
+    private void setEnabled(CommandSender sender, String value) throws IOException {
+        boolean enabled = requireBoolean(value, "enabled");
+        config.setEnabled(enabled);
+        afkManager.applyConfiguration();
+        CommandMessages.send(
+            sender,
+            config,
+            "&aJustAFK " + (enabled ? "enabled." : "disabled.")
+        );
+    }
+
+    private void setAutomaticAfk(CommandSender sender, String value) throws IOException {
+        boolean enabled = requireBoolean(value, "automatic-afk");
+        config.setAutomaticAfkEnabled(enabled);
+        CommandMessages.send(
+            sender,
+            config,
+            "&aAutomatic AFK " + (enabled ? "enabled." : "disabled.")
+        );
     }
 
     private void setTimeout(CommandSender sender, String value) throws IOException {
@@ -163,10 +198,7 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
     }
 
     private void setPlayerList(CommandSender sender, String value) throws IOException {
-        Boolean enabled = parseBoolean(value);
-        if (enabled == null) {
-            throw new IllegalArgumentException("Use on or off for playerlist.");
-        }
+        boolean enabled = requireBoolean(value, "playerlist");
 
         config.setPlayerListEnabled(enabled);
         afkManager.refreshPlayerLists();
@@ -175,6 +207,14 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
             config,
             "&aPlayer-list prefix " + (enabled ? "enabled." : "disabled.")
         );
+    }
+
+    private boolean requireBoolean(String value, String setting) {
+        Boolean enabled = parseBoolean(value);
+        if (enabled == null) {
+            throw new IllegalArgumentException("Use on or off for " + setting + ".");
+        }
+        return enabled;
     }
 
     private Boolean parseBoolean(String value) {
@@ -200,6 +240,8 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("  /afk <player> [on|off|toggle]");
         sender.sendMessage("  /justafk status");
         sender.sendMessage("  /justafk reload");
+        sender.sendMessage("  /justafk set enabled <on|off>");
+        sender.sendMessage("  /justafk set automatic-afk <on|off>");
         sender.sendMessage("  /justafk set timeout <seconds>");
         sender.sendMessage("  /justafk set announcements <all|ops|none>");
         sender.sendMessage("  /justafk set playerlist <on|off>");
@@ -224,6 +266,8 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
                     return filter(Collections.singletonList("300"), args[2]);
                 case "announcements":
                     return filter(Arrays.asList("all", "ops", "none"), args[2]);
+                case "enabled":
+                case "automatic-afk":
                 case "playerlist":
                     return filter(Arrays.asList("on", "off"), args[2]);
                 default:
@@ -231,6 +275,10 @@ public final class JustAfkCommand implements CommandExecutor, TabCompleter {
             }
         }
         return Collections.emptyList();
+    }
+
+    private String enabledLabel(boolean enabled) {
+        return enabled ? "enabled" : "disabled";
     }
 
     private List<String> filter(List<String> options, String input) {

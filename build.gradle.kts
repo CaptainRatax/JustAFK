@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "pt.captainratax"
-version = "1.0.1"
+version = "1.1.0"
 description = "A lightweight and configurable AFK plugin for Minecraft servers."
 
 repositories {

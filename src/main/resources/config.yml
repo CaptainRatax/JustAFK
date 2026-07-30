@@ -1,3 +1,11 @@
+# Enables or disables JustAFK as a whole.
+# When disabled, only the help, status, reload, and configuration commands work.
+enabled: true
+
+# Marks inactive players as AFK automatically after the configured timeout.
+# Manual AFK commands remain available when this is disabled.
+automatic-afk-enabled: true
+
 # Time without a position change before a player is marked as AFK.
 # The default is 300 seconds (5 minutes).
 inactivity-timeout-seconds: 300
