@@ -3,13 +3,11 @@ package pt.captainratax.justafk.afk;
 final class TrackedPlayer {
 
     final PlayerAfkState afkState;
-    PositionSnapshot lastPosition;
     String originalPlayerListName;
     String lastAppliedPlayerListName;
     String lastDurationLabel;
 
-    TrackedPlayer(long nowMillis, PositionSnapshot lastPosition) {
+    TrackedPlayer(long nowMillis) {
         this.afkState = new PlayerAfkState(nowMillis);
-        this.lastPosition = lastPosition;
     }
 }

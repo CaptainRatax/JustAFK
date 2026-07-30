@@ -46,6 +46,11 @@ public final class AfkCommand implements CommandExecutor, TabCompleter {
         String label,
         String[] args
     ) {
+        if (!config.settings().enabled()) {
+            CommandMessages.send(sender, config, "&cJustAFK is currently disabled.");
+            return true;
+        }
+
         if (args.length == 0) {
             return toggleSelf(sender);
         }
@@ -80,6 +85,11 @@ public final class AfkCommand implements CommandExecutor, TabCompleter {
 
         // The target may belong to a different Folia region.
         scheduler.runForPlayer(target, () -> {
+            if (!config.settings().enabled()) {
+                sendDisabled(sender);
+                return;
+            }
+
             boolean isAfk;
             if ("on".equals(action)) {
                 isAfk = afkManager.setAfk(target, true);
@@ -89,12 +99,20 @@ public final class AfkCommand implements CommandExecutor, TabCompleter {
                 isAfk = afkManager.toggleAfk(target);
             }
 
+            if (!config.settings().enabled()) {
+                sendDisabled(sender);
+                return;
+            }
+
             sendResult(
                 sender,
                 target.getName() + " is " + (isAfk ? "now AFK." : "no longer AFK.")
             );
 
-            if (!sender.getName().equalsIgnoreCase(target.getName())) {
+            if (
+                config.settings().enabled()
+                    && !sender.getName().equalsIgnoreCase(target.getName())
+            ) {
                 target.sendMessage(ColorText.colorize(
                     config.settings().commandPrefix()
                         + "&7Your AFK state was changed by "
@@ -118,6 +136,10 @@ public final class AfkCommand implements CommandExecutor, TabCompleter {
 
         Player player = (Player) sender;
         boolean isAfk = afkManager.toggleAfk(player);
+        if (!config.settings().enabled()) {
+            CommandMessages.send(sender, config, "&cJustAFK is currently disabled.");
+            return true;
+        }
         CommandMessages.send(
             sender,
             config,
@@ -133,15 +155,49 @@ public final class AfkCommand implements CommandExecutor, TabCompleter {
             .orElse(null);
     }
 
+    private void sendDisabled(CommandSender sender) {
+        if (sender instanceof Player) {
+            Player player = (Player) sender;
+            scheduler.runForPlayer(
+                player,
+                () -> CommandMessages.send(
+                    player,
+                    config,
+                    "&cJustAFK is currently disabled."
+                )
+            );
+        } else {
+            CommandMessages.send(sender, config, "&cJustAFK is currently disabled.");
+        }
+    }
+
     private void sendResult(CommandSender sender, String message) {
         if (sender instanceof Player) {
             Player player = (Player) sender;
             scheduler.runForPlayer(
                 player,
-                () -> CommandMessages.send(player, config, "&7" + message)
+                () -> {
+                    if (!config.settings().enabled()) {
+                        CommandMessages.send(
+                            player,
+                            config,
+                            "&cJustAFK is currently disabled."
+                        );
+                        return;
+                    }
+                    CommandMessages.send(player, config, "&7" + message);
+                }
             );
         } else {
-            CommandMessages.send(sender, config, "&7" + message);
+            if (!config.settings().enabled()) {
+                CommandMessages.send(
+                    sender,
+                    config,
+                    "&cJustAFK is currently disabled."
+                );
+            } else {
+                CommandMessages.send(sender, config, "&7" + message);
+            }
         }
     }
 
@@ -152,7 +208,7 @@ public final class AfkCommand implements CommandExecutor, TabCompleter {
         String alias,
         String[] args
     ) {
-        if (!sender.hasPermission("justafk.others")) {
+        if (!config.settings().enabled() || !sender.hasPermission("justafk.others")) {
             return Collections.emptyList();
         }
 

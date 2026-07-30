@@ -23,7 +23,7 @@ class PlayerAfkStateTest {
     }
 
     @Test
-    void movementMakesAnAfkPlayerActive() {
+    void activityInputMakesAnAfkPlayerActive() {
         PlayerAfkState state = new PlayerAfkState(0L);
         state.setAfk(true, 10_000L);
 

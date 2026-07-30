@@ -1,13 +1,15 @@
 # JustAFK
 
 JustAFK is a lightweight AFK plugin for Bukkit-compatible Minecraft servers. It
-marks players as AFK after a configurable period without a position change,
+marks players as AFK after a configurable period without movement input,
 provides manual and administrative commands, announces state changes, and can
 show the AFK duration in the player list.
 
 ## Features
 
-- Automatic AFK detection with a default timeout of 300 seconds.
+- Global enable/disable control that leaves configuration commands available.
+- Independently configurable automatic AFK detection.
+- Input-aware automatic AFK detection with a default timeout of 300 seconds.
 - `/afk` command for every player.
 - Administrative control over any online player's AFK state.
 - Configurable announcements for everyone, operators only, or nobody.
@@ -17,47 +19,42 @@ show the AFK duration in the player list.
 - Folia-aware scheduling without adding a separate runtime dependency.
 - No database, NMS, or external runtime libraries.
 
-Only changes to the player's world position count as movement. Looking around
-without changing X, Y, or Z does not reset the inactivity timer. Movement also
-immediately removes the AFK state. The displayed duration starts when the player
-is marked as AFK, so a newly AFK player is shown as `[AFK 0m]`.
+Forward, backward, left, right, jump, sneak, and sprint inputs count as player
+activity. Any of them immediately removes the AFK state and restarts the
+inactivity timer. Position changes without movement input, including entity
+pushes, knockback, explosions, water, pistons, server teleports, death, and
+respawn, do not remove AFK or restart the timer. Looking around also remains
+ignored. The displayed duration starts when the player is marked as AFK, so a
+newly AFK player is shown as `[AFK 0m]`.
 
 ## Compatibility
 
 | Server | Status |
 | --- | --- |
-| Paper 1.8.8–26.2 | Compatible; runtime-tested at both endpoints, with 26.2 as the primary target |
-| Purpur 1.14.1–26.2 | Compatible Paper fork; runtime-tested on 26.2 |
-| Folia 1.19.4–26.2 | Uses Folia schedulers; runtime-tested on the latest public 26.1.2 build |
-| Spigot / CraftBukkit 1.8.8–26.2 | Compatibility-compiled against Spigot 1.8.8; best-effort runtime support |
+| Paper 1.21.3–26.2 | Supported; Paper 26.2 is the primary build target |
+| Purpur 1.21.3–26.2 | Supported Paper fork |
+| Folia 1.21.3–26.2 | Supported where Folia publishes a server build; uses Folia schedulers |
+| Spigot / CraftBukkit 1.21.3–26.2 | Compatibility-compiled against Spigot 1.21.3 |
 | Sponge | Not supported |
 | BungeeCord / Velocity / Waterfall | Not supported; these are proxy platforms |
 
 Sponge uses a different plugin API and lifecycle. Supporting it cleanly would
 require a separate platform module rather than a small compatibility layer.
 
-Version 1.0.1 is built against Paper 26.2 and compatibility-compiled against
-Spigot 1.8.8. Both compilations must produce identical class files before the
-build passes. A 1.0.1 JAR from this source and build configuration was
-smoke-tested on Paper 1.8.8, Paper 26.2, Purpur 26.2, and the latest published
-Folia 26.1.2 build.
+Version 1.1.0 is built against Paper 26.2 and compatibility-compiled against
+Spigot 1.21.3. Both compilations must produce identical class files before the
+build passes. The 1.21.3 minimum is required because this version uses the
+movement-input API rather than inferring activity from changes in position.
 
-At the time of the 1.0.1 release, PaperMC had not published a Folia 26.2 server
-build. The scheduler API used by JustAFK is available throughout the stated
-Folia range, and the 26.2 source branch is ready, but the latest runtime
-validation is Folia 26.1.2.
+The JAR uses Java 21 bytecode. Servers may require a newer Java runtime for
+their own Minecraft version; Paper 26.2 requires Java 25.
 
-The JAR uses Java 8 bytecode so it can run across the full version range. The
-server itself must still use the Java version required by its Minecraft
-version; Paper 26.2 requires Java 25.
-
-`api-version: 1.13` is intentional. Modern servers use the oldest supported API
-declaration instead of treating the plugin as legacy, while older Bukkit
-loaders ignore the field. This was verified with Paper 1.8.8.
+`api-version: 1.21.3` makes servers below the supported baseline refuse to load
+the plugin instead of failing later when the movement-input API is used.
 
 ## Installation
 
-1. Download or build `JustAFK-1.0.1.jar`.
+1. Download or build `JustAFK-1.1.0.jar`.
 2. Place the JAR in the server's `plugins` directory.
 3. Restart the server.
 4. Edit `plugins/JustAFK/config.yml` if needed, then run `/justafk reload`.
@@ -71,11 +68,22 @@ loaders ignore the field. This was verified with Paper 1.8.8.
 | `/justafk help` | Show the command list. | `justafk.config` |
 | `/justafk status` | Show the active configuration. | `justafk.config` |
 | `/justafk reload` | Reload `config.yml`. | `justafk.config` |
+| `/justafk set enabled <on\|off>` | Enable or disable JustAFK globally. | `justafk.config` |
+| `/justafk set automatic-afk <on\|off>` | Enable or disable automatic AFK detection. | `justafk.config` |
 | `/justafk set timeout <seconds>` | Change the automatic AFK timeout. | `justafk.config` |
 | `/justafk set announcements <all\|ops\|none>` | Change the announcement audience. | `justafk.config` |
 | `/justafk set playerlist <on\|off>` | Enable or disable the tab-list prefix. | `justafk.config` |
 
 Running `/afk <player>` without an action defaults to `toggle`.
+
+When `enabled` is `false`, `/afk`, automatic AFK detection, AFK state
+management, announcements, and player-list effects are disabled. The
+`/justafk help`, `/justafk status`, `/justafk reload`, and `/justafk set ...`
+commands remain available so the plugin can be inspected, configured, and
+enabled again.
+
+When only `automatic-afk-enabled` is `false`, inactivity no longer marks
+players as AFK, but `/afk` and administrative AFK changes continue to work.
 
 ## Permissions
 
@@ -89,7 +97,16 @@ Running `/afk <player>` without an action defaults to `toggle`.
 ## Configuration
 
 ```yaml
-# Time without a position change before a player is marked as AFK.
+# Enables or disables JustAFK as a whole.
+# When disabled, only the help, status, reload, and configuration commands work.
+enabled: true
+
+# Marks inactive players as AFK automatically after the configured timeout.
+# Manual AFK commands remain available when this is disabled.
+automatic-afk-enabled: true
+
+# Time without movement input before a player is marked as AFK.
+# Movement input includes forward, backward, left, right, jump, sneak, and sprint.
 inactivity-timeout-seconds: 300
 
 announcements:
@@ -111,6 +128,8 @@ The `{duration}` placeholder is required in `player-list.format`. The
 colour codes using `&` are supported.
 
 Configuration commands update `config.yml` immediately.
+Configurations created by earlier releases remain compatible: when either new
+toggle is absent, it defaults to `true`.
 
 YAML comments are preserved when the server configuration API supports comment
 parsing. Configuration values still load and save on older servers, but their
@@ -119,20 +138,20 @@ YAML implementation may discard comments during a save.
 ## Building
 
 The project uses Gradle 9.1 and a Java 25 toolchain. The release JAR is compiled
-against the official Paper 26.2 build 84 stable API and emits Java 8 bytecode.
+against the official Paper 26.2 build 84 stable API and emits Java 21 bytecode.
 
 ```bash
 ./gradlew build
 ```
 
-The build also compiles the same source against Spigot 1.8.8, compares both
-class outputs, runs the unit tests, verifies the Java 8 class-file version, and
+The build also compiles the same source against Spigot 1.21.3, compares both
+class outputs, runs the unit tests, verifies the Java 21 class-file version, and
 checks that no runtime dependencies are declared.
 
 The plugin JAR will be created at:
 
 ```text
-build/libs/JustAFK-1.0.1.jar
+build/libs/JustAFK-1.1.0.jar
 ```
 
 Tests can be run separately with:

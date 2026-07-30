@@ -1,12 +1,14 @@
 package pt.captainratax.justafk.afk;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
+import org.bukkit.Input;
 import org.bukkit.entity.Player;
 import pt.captainratax.justafk.config.AnnouncementAudience;
 import pt.captainratax.justafk.config.JustAfkConfig;
@@ -20,7 +22,7 @@ import pt.captainratax.justafk.util.DurationFormatter;
  */
 public final class AfkManager {
 
-    private final JustAfkConfig config;
+    private final Supplier<PluginSettings> settingsSupplier;
     private final PlatformScheduler scheduler;
     private final LongSupplier currentTimeMillis;
     private final Map<UUID, TrackedPlayer> trackedPlayers = new ConcurrentHashMap<>();
@@ -34,19 +36,24 @@ public final class AfkManager {
         PlatformScheduler scheduler,
         LongSupplier currentTimeMillis
     ) {
-        this.config = config;
+        this(config::settings, scheduler, currentTimeMillis);
+    }
+
+    AfkManager(
+        Supplier<PluginSettings> settingsSupplier,
+        PlatformScheduler scheduler,
+        LongSupplier currentTimeMillis
+    ) {
+        this.settingsSupplier = Objects.requireNonNull(
+            settingsSupplier,
+            "settingsSupplier"
+        );
         this.scheduler = scheduler;
         this.currentTimeMillis = currentTimeMillis;
     }
 
     public void register(Player player) {
-        trackedPlayers.computeIfAbsent(
-            player.getUniqueId(),
-            ignored -> new TrackedPlayer(
-                currentTimeMillis.getAsLong(),
-                PositionSnapshot.from(player.getLocation())
-            )
-        );
+        getOrRegister(player);
     }
 
     public void unregister(Player player) {
@@ -56,21 +63,28 @@ public final class AfkManager {
         }
     }
 
-    public void recordMovement(Player player, Location from, Location to) {
-        if (PositionSnapshot.from(from).equals(PositionSnapshot.from(to))) {
+    public void recordInput(Player player, Input input) {
+        if (!settings().enabled() || !PlayerInputActivity.isActive(input)) {
             return;
         }
 
         TrackedPlayer tracked = getOrRegister(player);
-        tracked.lastPosition = PositionSnapshot.from(to);
+        if (tracked == null) {
+            return;
+        }
         applyTransition(
             player,
             tracked,
-            tracked.afkState.recordActivity(currentTimeMillis.getAsLong())
+            tracked.afkState.recordActivity(currentTimeMillis.getAsLong()),
+            false
         );
     }
 
     public void checkOnlinePlayers() {
+        if (!settings().enabled()) {
+            return;
+        }
+
         // The global task only fans out; each player is checked on their own scheduler.
         for (Player player : Bukkit.getOnlinePlayers()) {
             scheduler.runForPlayer(player, () -> checkPlayer(player));
@@ -78,16 +92,21 @@ public final class AfkManager {
     }
 
     public boolean isAfk(Player player) {
-        return getOrRegister(player).afkState.isAfk();
+        TrackedPlayer tracked = getOrRegister(player);
+        return tracked != null && tracked.afkState.isAfk();
     }
 
     public boolean setAfk(Player player, boolean afk) {
         TrackedPlayer tracked = getOrRegister(player);
+        if (tracked == null) {
+            return false;
+        }
+
         AfkTransition transition = tracked.afkState.setAfk(
             afk,
             currentTimeMillis.getAsLong()
         );
-        applyTransition(player, tracked, transition);
+        applyTransition(player, tracked, transition, false);
         return tracked.afkState.isAfk();
     }
 
@@ -96,66 +115,180 @@ public final class AfkManager {
     }
 
     public void refreshPlayerLists() {
+        if (!settings().enabled()) {
+            return;
+        }
+
         for (Player player : Bukkit.getOnlinePlayers()) {
             scheduler.runForPlayer(player, () -> {
+                if (!settings().enabled()) {
+                    return;
+                }
                 TrackedPlayer tracked = getOrRegister(player);
-                refreshPlayerList(player, tracked, currentTimeMillis.getAsLong());
+                if (tracked != null) {
+                    refreshPlayerList(player, tracked, currentTimeMillis.getAsLong());
+                }
+            });
+        }
+    }
+
+    public void applyConfiguration() {
+        if (!settings().enabled()) {
+            clearTrackedPlayers();
+            return;
+        }
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            scheduler.runForPlayer(player, () -> {
+                if (!settings().enabled() || !player.isOnline()) {
+                    return;
+                }
+                TrackedPlayer tracked = getOrRegister(player);
+                if (tracked != null) {
+                    refreshPlayerList(player, tracked, currentTimeMillis.getAsLong());
+                }
             });
         }
     }
 
     public void shutdown() {
+        clearTrackedPlayers();
+    }
+
+    private void clearTrackedPlayers() {
+        Map<UUID, TrackedPlayer> playersToRestore = new HashMap<>(trackedPlayers);
+        trackedPlayers.clear();
+
         for (Player player : Bukkit.getOnlinePlayers()) {
-            TrackedPlayer tracked = trackedPlayers.get(player.getUniqueId());
+            TrackedPlayer tracked = playersToRestore.get(player.getUniqueId());
             if (tracked != null) {
                 scheduler.runForPlayer(player, () -> restorePlayerListName(player, tracked));
             }
         }
-        trackedPlayers.clear();
     }
 
-    private void checkPlayer(Player player) {
-        if (!player.isOnline()) {
+    void checkPlayer(Player player) {
+        PluginSettings settings = settings();
+        if (!settings.enabled() || !player.isOnline()) {
             return;
         }
 
         TrackedPlayer tracked = getOrRegister(player);
+        if (tracked == null) {
+            return;
+        }
         long nowMillis = currentTimeMillis.getAsLong();
-        PositionSnapshot currentPosition = PositionSnapshot.from(player.getLocation());
 
         AfkTransition transition;
-        if (!currentPosition.equals(tracked.lastPosition)) {
-            // Looking around is ignored; only a position or world change counts as activity.
-            tracked.lastPosition = currentPosition;
+        boolean automaticTransition = false;
+        if (PlayerInputActivity.isActive(player.getCurrentInput())) {
             transition = tracked.afkState.recordActivity(nowMillis);
-        } else {
+        } else if (settings.automaticAfkEnabled()) {
+            automaticTransition = true;
             transition = tracked.afkState.tryAutomaticAfk(
                 nowMillis,
-                config.settings().inactivityTimeoutSeconds()
+                settings.inactivityTimeoutSeconds()
             );
+        } else {
+            transition = AfkTransition.NONE;
         }
 
-        applyTransition(player, tracked, transition);
+        // A config command can run concurrently from another Folia region.
+        if (
+            automaticTransition
+                && transition == AfkTransition.BECAME_AFK
+                && !automaticTransitionAllowed()
+        ) {
+            cancelAutomaticTransition(player, tracked, nowMillis);
+            transition = AfkTransition.NONE;
+        }
+
+        applyTransition(
+            player,
+            tracked,
+            transition,
+            automaticTransition
+        );
         refreshPlayerList(player, tracked, nowMillis);
     }
 
     private TrackedPlayer getOrRegister(Player player) {
-        register(player);
-        return trackedPlayers.get(player.getUniqueId());
+        if (!settings().enabled()) {
+            return null;
+        }
+
+        UUID playerId = player.getUniqueId();
+        TrackedPlayer tracked = trackedPlayers.computeIfAbsent(
+            playerId,
+            ignored -> new TrackedPlayer(
+                currentTimeMillis.getAsLong()
+            )
+        );
+
+        if (!settings().enabled()) {
+            if (trackedPlayers.remove(playerId, tracked)) {
+                restorePlayerListName(player, tracked);
+            }
+            return null;
+        }
+        return tracked;
     }
 
     private void applyTransition(
         Player player,
         TrackedPlayer tracked,
-        AfkTransition transition
+        AfkTransition transition,
+        boolean automaticTransition
     ) {
+        if (
+            !settings().enabled()
+                || trackedPlayers.get(player.getUniqueId()) != tracked
+        ) {
+            return;
+        }
+
         if (transition == AfkTransition.BECAME_AFK) {
+            if (automaticTransition && !automaticTransitionAllowed()) {
+                cancelAutomaticTransition(
+                    player,
+                    tracked,
+                    currentTimeMillis.getAsLong()
+                );
+                return;
+            }
+
             refreshPlayerList(player, tracked, currentTimeMillis.getAsLong());
-            announce(player.getName(), true);
+            if (automaticTransition && !automaticTransitionAllowed()) {
+                cancelAutomaticTransition(
+                    player,
+                    tracked,
+                    currentTimeMillis.getAsLong()
+                );
+                return;
+            }
+            announce(player.getName(), true, automaticTransition);
         } else if (transition == AfkTransition.BECAME_ACTIVE) {
             restorePlayerListName(player, tracked);
-            announce(player.getName(), false);
+            announce(player.getName(), false, false);
         }
+    }
+
+    private boolean automaticTransitionAllowed() {
+        PluginSettings settings = settings();
+        return settings.enabled() && settings.automaticAfkEnabled();
+    }
+
+    private void cancelAutomaticTransition(
+        Player player,
+        TrackedPlayer tracked,
+        long nowMillis
+    ) {
+        if (trackedPlayers.get(player.getUniqueId()) != tracked) {
+            return;
+        }
+
+        tracked.afkState.setAfk(false, nowMillis);
+        restorePlayerListName(player, tracked);
     }
 
     private void refreshPlayerList(
@@ -163,8 +296,13 @@ public final class AfkManager {
         TrackedPlayer tracked,
         long nowMillis
     ) {
-        PluginSettings settings = config.settings();
-        if (!settings.showInPlayerList() || !tracked.afkState.isAfk()) {
+        PluginSettings settings = settings();
+        if (
+            !settings.enabled()
+                || trackedPlayers.get(player.getUniqueId()) != tracked
+                || !settings.showInPlayerList()
+                || !tracked.afkState.isAfk()
+        ) {
             restorePlayerListName(player, tracked);
             return;
         }
@@ -191,6 +329,17 @@ public final class AfkManager {
             durationLabel.equals(tracked.lastDurationLabel)
                 && Objects.equals(currentName, tracked.lastAppliedPlayerListName)
         ) {
+            return;
+        }
+
+        settings = settings();
+        if (
+            !settings.enabled()
+                || trackedPlayers.get(player.getUniqueId()) != tracked
+                || !settings.showInPlayerList()
+                || !tracked.afkState.isAfk()
+        ) {
+            restorePlayerListName(player, tracked);
             return;
         }
 
@@ -228,8 +377,22 @@ public final class AfkManager {
         return playerListName == null ? player.getName() : playerListName;
     }
 
-    private void announce(String playerName, boolean becameAfk) {
-        PluginSettings settings = config.settings();
+    private void announce(
+        String playerName,
+        boolean becameAfk,
+        boolean automaticTransition
+    ) {
+        PluginSettings settings = settings();
+        if (
+            !settings.enabled()
+                || (
+                    automaticTransition
+                        && !automaticTransitionAllowed()
+                )
+        ) {
+            return;
+        }
+
         AnnouncementAudience audience = settings.announcementAudience();
         if (audience == AnnouncementAudience.NONE) {
             return;
@@ -246,7 +409,12 @@ public final class AfkManager {
             // Message delivery also runs on the recipient's scheduler under Folia.
             scheduler.runForPlayer(recipient, () -> {
                 if (
-                    recipient.isOnline()
+                    settings().enabled()
+                        && (
+                            !automaticTransition
+                                || automaticTransitionAllowed()
+                        )
+                        && recipient.isOnline()
                         && (
                             audience == AnnouncementAudience.ALL
                                 || recipient.isOp()
@@ -256,5 +424,9 @@ public final class AfkManager {
                 }
             });
         }
+    }
+
+    private PluginSettings settings() {
+        return settingsSupplier.get();
     }
 }

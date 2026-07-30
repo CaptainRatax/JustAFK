@@ -14,6 +14,8 @@ import org.bukkit.plugin.java.JavaPlugin;
  */
 public final class JustAfkConfig {
 
+    private static final String ENABLED_PATH = "enabled";
+    private static final String AUTOMATIC_AFK_ENABLED_PATH = "automatic-afk-enabled";
     private static final String TIMEOUT_PATH = "inactivity-timeout-seconds";
     private static final String AUDIENCE_PATH = "announcements.audience";
     private static final String PLAYER_LIST_ENABLED_PATH = "player-list.enabled";
@@ -53,6 +55,14 @@ public final class JustAfkConfig {
             throw new IllegalStateException("The JustAFK configuration has not been loaded.");
         }
         return current;
+    }
+
+    public synchronized void setEnabled(boolean enabled) throws IOException {
+        update(ENABLED_PATH, enabled);
+    }
+
+    public synchronized void setAutomaticAfkEnabled(boolean enabled) throws IOException {
+        update(AUTOMATIC_AFK_ENABLED_PATH, enabled);
     }
 
     public synchronized void setInactivityTimeoutSeconds(long seconds) throws IOException {
@@ -111,6 +121,8 @@ public final class JustAfkConfig {
         );
 
         return new PluginSettings(
+            yaml.getBoolean(ENABLED_PATH, true),
+            yaml.getBoolean(AUTOMATIC_AFK_ENABLED_PATH, true),
             timeout,
             audience,
             yaml.getBoolean(PLAYER_LIST_ENABLED_PATH, true),
