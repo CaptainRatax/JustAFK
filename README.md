@@ -1,7 +1,10 @@
 # JustAFK
 
+Downloads: [Modrinth](https://modrinth.com/plugin/justafk) ·
+[CurseForge](https://www.curseforge.com/minecraft/bukkit-plugins/justafk-plugin)
+
 JustAFK is a lightweight AFK plugin for Bukkit-compatible Minecraft servers. It
-marks players as AFK after a configurable period without movement input,
+marks players as AFK after a configurable period without recognized activity,
 provides manual and administrative commands, announces state changes, and can
 show the AFK duration in the player list.
 
@@ -9,23 +12,29 @@ show the AFK duration in the player list.
 
 - Global enable/disable control that leaves configuration commands available.
 - Independently configurable automatic AFK detection.
-- Input-aware automatic AFK detection with a default timeout of 300 seconds.
+- Activity-aware automatic AFK detection with a default timeout of 300 seconds.
 - `/afk` command for every player.
 - Administrative control over any online player's AFK state.
 - Configurable announcements for everyone, operators only, or nobody.
 - Optional grey `[AFK 5m]` / `[AFK 2h]` prefix in the tab player list.
 - Runtime configuration commands with tab completion.
 - Player-list name preservation for compatibility with other formatting plugins.
+- Public API and AFK state-change event for integrations with other plugins.
 - Folia-aware scheduling without adding a separate runtime dependency.
 - No database, NMS, or external runtime libraries.
 
 Forward, backward, left, right, jump, sneak, and sprint inputs count as player
-activity. Any of them immediately removes the AFK state and restarts the
-inactivity timer. Position changes without movement input, including entity
-pushes, knockback, explosions, water, pistons, server teleports, death, and
-respawn, do not remove AFK or restart the timer. Looking around also remains
-ignored. The displayed duration starts when the player is marked as AFK, so a
-newly AFK player is shown as `[AFK 0m]`.
+activity. Submitting a chat message, breaking or placing blocks, player-driven
+fishing actions, interacting with blocks or entities, and using or interacting
+with items also count. Recognized activity immediately removes the AFK state
+and restarts the inactivity timer, even when another plugin cancels the
+corresponding action event. A server-driven fishing bite alone does not count
+as new player activity.
+Position changes without movement input, including entity pushes, knockback,
+explosions, water, pistons, server teleports, death, and respawn, do not remove
+AFK or restart the timer. Looking around also remains ignored. The displayed
+duration starts when the player is marked as AFK, so a newly AFK player is shown
+as `[AFK 0m]`.
 
 ## Compatibility
 
@@ -41,7 +50,7 @@ newly AFK player is shown as `[AFK 0m]`.
 Sponge uses a different plugin API and lifecycle. Supporting it cleanly would
 require a separate platform module rather than a small compatibility layer.
 
-Version 1.1.0 is built against Paper 26.2 and compatibility-compiled against
+Version 1.2.0 is built against Paper 26.2 and compatibility-compiled against
 Spigot 1.21.3. Both compilations must produce identical class files before the
 build passes. The 1.21.3 minimum is required because this version uses the
 movement-input API rather than inferring activity from changes in position.
@@ -54,7 +63,7 @@ the plugin instead of failing later when the movement-input API is used.
 
 ## Installation
 
-1. Download or build `JustAFK-1.1.0.jar`.
+1. Download or build `JustAFK-1.2.0.jar`.
 2. Place the JAR in the server's `plugins` directory.
 3. Restart the server.
 4. Edit `plugins/JustAFK/config.yml` if needed, then run `/justafk reload`.
@@ -94,6 +103,34 @@ players as AFK, but `/afk` and administrative AFK changes continue to work.
 | `justafk.config` | Operators | Configuration access. |
 | `justafk.admin` | Operators | Grants every JustAFK permission. |
 
+## Public API
+
+JustAFK registers its `JustAfkApi` provider with Bukkit's `ServicesManager`.
+Plugins can retrieve the provider after JustAFK has been enabled and should
+handle it being unavailable:
+
+```java
+import org.bukkit.Bukkit;
+import pt.captainratax.justafk.api.JustAfkApi;
+
+JustAfkApi api = Bukkit.getServicesManager().load(JustAfkApi.class);
+boolean playerIsAfk = api != null && api.isAfk(player);
+```
+
+Both `Player` and `UUID` lookups use the AFK state already maintained by
+JustAFK. An unknown or offline UUID that is not currently tracked returns
+`false`, and querying it does not create new tracking state.
+
+JustAFK also publishes `PlayerAfkStateChangeEvent` through Bukkit's event
+system. The event exposes the player and their new AFK state, and is fired only
+when the state actually changes from active to AFK or from AFK to active.
+Repeated attempts to apply the current state do not fire another event. Its
+`isAutomatic()` method is `true` only when an inactivity timeout moves the
+player into AFK, and is `false` for manual changes and activity-driven returns.
+Disabling JustAFK through its runtime configuration clears tracked AFK states
+and publishes the corresponding active events. Player quit and plugin shutdown
+cleanup remove tracking without representing a new active-player transition.
+
 ## Configuration
 
 ```yaml
@@ -105,8 +142,9 @@ enabled: true
 # Manual AFK commands remain available when this is disabled.
 automatic-afk-enabled: true
 
-# Time without movement input before a player is marked as AFK.
-# Movement input includes forward, backward, left, right, jump, sneak, and sprint.
+# Time without recognized player activity before a player is marked as AFK.
+# Activity includes movement input, chat messages, breaking or placing blocks,
+# player-driven fishing actions, block, item, and entity interactions, and item use.
 inactivity-timeout-seconds: 300
 
 announcements:
@@ -151,7 +189,7 @@ checks that no runtime dependencies are declared.
 The plugin JAR will be created at:
 
 ```text
-build/libs/JustAFK-1.1.0.jar
+build/libs/JustAFK-1.2.0.jar
 ```
 
 Tests can be run separately with:

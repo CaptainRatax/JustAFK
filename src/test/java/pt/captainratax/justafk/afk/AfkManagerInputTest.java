@@ -242,7 +242,9 @@ class AfkManagerInputTest {
             manager = new AfkManager(
                 settings::get,
                 IMMEDIATE_SCHEDULER,
-                nowMillis::get
+                nowMillis::get,
+                ignored -> {
+                }
             );
         }
     }

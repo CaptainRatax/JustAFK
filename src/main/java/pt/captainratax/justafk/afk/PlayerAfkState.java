@@ -6,7 +6,7 @@ package pt.captainratax.justafk.afk;
 public final class PlayerAfkState {
 
     private long lastActivityMillis;
-    private long afkSinceMillis = -1L;
+    private volatile long afkSinceMillis = -1L;
 
     public PlayerAfkState(long nowMillis) {
         lastActivityMillis = nowMillis;
