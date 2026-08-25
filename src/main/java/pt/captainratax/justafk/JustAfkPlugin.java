@@ -35,7 +35,7 @@ public final class JustAfkPlugin extends JavaPlugin {
             afkManager = new AfkManager(config, scheduler);
 
             Bukkit.getPluginManager().registerEvents(
-                new PlayerActivityListener(afkManager),
+                new PlayerActivityListener(afkManager, scheduler),
                 this
             );
 

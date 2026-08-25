@@ -7,8 +7,8 @@ enabled: true
 automatic-afk-enabled: true
 
 # Time without recognized player activity before a player is marked as AFK.
-# Activity includes movement input, breaking or placing blocks, player-driven
-# fishing actions, block, item, and entity interactions, and item use.
+# Activity includes movement input, chat messages, breaking or placing blocks,
+# player-driven fishing actions, block, item, and entity interactions, and item use.
 # The default is 300 seconds (5 minutes).
 inactivity-timeout-seconds: 300
 

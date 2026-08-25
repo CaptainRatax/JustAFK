@@ -3,11 +3,13 @@ package pt.captainratax.justafk.afk;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import org.bukkit.Material;
@@ -23,6 +25,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -37,6 +40,7 @@ import pt.captainratax.justafk.listener.PlayerActivityListener;
 import pt.captainratax.justafk.platform.PlatformScheduler;
 import pt.captainratax.justafk.platform.ScheduledHandle;
 
+@SuppressWarnings("deprecation")
 class PlayerActivityListenerTest {
 
     private static final PluginSettings SETTINGS = new PluginSettings(
@@ -150,6 +154,46 @@ class PlayerActivityListenerTest {
     }
 
     @Test
+    void asyncChatMakesAnAfkPlayerActiveAfterPlayerSchedulerRuns() {
+        TestContext context = new TestContext();
+        AsyncPlayerChatEvent event = new AsyncPlayerChatEvent(
+            true,
+            context.player,
+            "Still here",
+            Set.of()
+        );
+
+        context.makeAfk();
+        context.listener.onPlayerChat(event);
+
+        assertTrue(context.manager.isAfk(context.player));
+        assertSame(context.player, context.chatScheduler.scheduledPlayer);
+        assertEquals(1, context.chatScheduler.playerTaskCount);
+
+        context.chatScheduler.runPendingTask();
+
+        assertFalse(context.manager.isAfk(context.player));
+    }
+
+    @Test
+    void cancelledChatMessageMakesAnAfkPlayerActive() {
+        TestContext context = new TestContext();
+        AsyncPlayerChatEvent event = new AsyncPlayerChatEvent(
+            true,
+            context.player,
+            "Still here",
+            Set.of()
+        );
+        event.setCancelled(true);
+
+        context.makeAfk();
+        context.listener.onPlayerChat(event);
+        context.chatScheduler.runPendingTask();
+
+        assertFalse(context.manager.isAfk(context.player));
+    }
+
+    @Test
     void cancelledBlockAndItemInteractionsMakeAnAfkPlayerActive() {
         TestContext context = new TestContext();
         PlayerInteractEvent blockInteraction = new PlayerInteractEvent(
@@ -234,6 +278,7 @@ class PlayerActivityListenerTest {
 
     @Test
     void activityHandlersMonitorCancelledEvents() throws NoSuchMethodException {
+        assertCancelledEventsObserved("onPlayerChat", AsyncPlayerChatEvent.class);
         assertCancelledEventsObserved("onBlockBreak", BlockBreakEvent.class);
         assertCancelledEventsObserved("onBlockPlace", BlockPlaceEvent.class);
         assertCancelledEventsObserved("onPlayerFish", PlayerFishEvent.class);
@@ -320,6 +365,8 @@ class PlayerActivityListenerTest {
         final AtomicLong nowMillis = new AtomicLong();
         final UUID playerId = UUID.randomUUID();
         final Player player = createPlayer();
+        final CapturingPlayerScheduler chatScheduler =
+            new CapturingPlayerScheduler();
         final AfkManager manager = new AfkManager(
             () -> SETTINGS,
             IMMEDIATE_SCHEDULER,
@@ -327,7 +374,10 @@ class PlayerActivityListenerTest {
             ignored -> {
             }
         );
-        final PlayerActivityListener listener = new PlayerActivityListener(manager);
+        final PlayerActivityListener listener = new PlayerActivityListener(
+            manager,
+            chatScheduler
+        );
 
         void makeAfk() {
             assertTrue(manager.setAfk(player, true));
@@ -352,6 +402,47 @@ class PlayerActivityListenerTest {
                 new Class<?>[] {Player.class},
                 handler
             );
+        }
+    }
+
+    private static final class CapturingPlayerScheduler
+        implements PlatformScheduler {
+
+        Player scheduledPlayer;
+        Runnable scheduledTask;
+        int playerTaskCount;
+
+        @Override
+        public ScheduledHandle repeatGlobal(
+            Runnable task,
+            long initialDelayTicks,
+            long periodTicks
+        ) {
+            return () -> {
+            };
+        }
+
+        @Override
+        public void runForPlayer(Player player, Runnable task) {
+            scheduledPlayer = player;
+            scheduledTask = task;
+            playerTaskCount++;
+        }
+
+        @Override
+        public void cancelAll() {
+        }
+
+        @Override
+        public String platformName() {
+            return "test";
+        }
+
+        void runPendingTask() {
+            assertNotNull(scheduledTask);
+            Runnable task = scheduledTask;
+            scheduledTask = null;
+            task.run();
         }
     }
 }

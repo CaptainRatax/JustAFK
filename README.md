@@ -21,11 +21,12 @@ show the AFK duration in the player list.
 - No database, NMS, or external runtime libraries.
 
 Forward, backward, left, right, jump, sneak, and sprint inputs count as player
-activity. Breaking or placing blocks, player-driven fishing actions, interacting
-with blocks or entities, and using or interacting with items also count.
-Recognized activity immediately removes the AFK state and restarts the
-inactivity timer, even when another plugin cancels the corresponding action
-event. A server-driven fishing bite alone does not count as new player activity.
+activity. Submitting a chat message, breaking or placing blocks, player-driven
+fishing actions, interacting with blocks or entities, and using or interacting
+with items also count. Recognized activity immediately removes the AFK state
+and restarts the inactivity timer, even when another plugin cancels the
+corresponding action event. A server-driven fishing bite alone does not count
+as new player activity.
 Position changes without movement input, including entity pushes, knockback,
 explosions, water, pistons, server teleports, death, and respawn, do not remove
 AFK or restart the timer. Looking around also remains ignored. The displayed
@@ -139,8 +140,8 @@ enabled: true
 automatic-afk-enabled: true
 
 # Time without recognized player activity before a player is marked as AFK.
-# Activity includes movement input, breaking or placing blocks, player-driven
-# fishing actions, block, item, and entity interactions, and item use.
+# Activity includes movement input, chat messages, breaking or placing blocks,
+# player-driven fishing actions, block, item, and entity interactions, and item use.
 inactivity-timeout-seconds: 300
 
 announcements:
