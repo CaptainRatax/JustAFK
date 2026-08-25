@@ -4,8 +4,10 @@ import java.util.Objects;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 import pt.captainratax.justafk.afk.AfkManager;
+import pt.captainratax.justafk.api.JustAfkApi;
 import pt.captainratax.justafk.command.AfkCommand;
 import pt.captainratax.justafk.command.JustAfkCommand;
 import pt.captainratax.justafk.config.JustAfkConfig;
@@ -47,6 +49,13 @@ public final class JustAfkPlugin extends JavaPlugin {
             // This pass drives timeouts and refreshes duration labels once per second.
             monitorTask = scheduler.repeatGlobal(afkManager::checkOnlinePlayers, 20L, 20L);
 
+            Bukkit.getServicesManager().register(
+                JustAfkApi.class,
+                afkManager,
+                this,
+                ServicePriority.Normal
+            );
+
             getLogger().info(
                 "JustAFK " + getDescription().getVersion()
                     + " enabled on " + scheduler.platformName() + "."
@@ -59,6 +68,7 @@ public final class JustAfkPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        Bukkit.getServicesManager().unregisterAll(this);
         if (monitorTask != null) {
             monitorTask.cancel();
         }

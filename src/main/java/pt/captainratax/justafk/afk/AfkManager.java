@@ -5,11 +5,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import org.bukkit.Bukkit;
 import org.bukkit.Input;
 import org.bukkit.entity.Player;
+import pt.captainratax.justafk.api.JustAfkApi;
+import pt.captainratax.justafk.api.event.PlayerAfkStateChangeEvent;
 import pt.captainratax.justafk.config.AnnouncementAudience;
 import pt.captainratax.justafk.config.JustAfkConfig;
 import pt.captainratax.justafk.config.PluginSettings;
@@ -20,15 +23,21 @@ import pt.captainratax.justafk.util.DurationFormatter;
 /**
  * Coordinates AFK state changes and their player-facing side effects.
  */
-public final class AfkManager {
+public final class AfkManager implements JustAfkApi {
 
     private final Supplier<PluginSettings> settingsSupplier;
     private final PlatformScheduler scheduler;
     private final LongSupplier currentTimeMillis;
+    private final Consumer<PlayerAfkStateChangeEvent> stateChangeEventPublisher;
     private final Map<UUID, TrackedPlayer> trackedPlayers = new ConcurrentHashMap<>();
 
     public AfkManager(JustAfkConfig config, PlatformScheduler scheduler) {
-        this(config, scheduler, System::currentTimeMillis);
+        this(
+            config::settings,
+            scheduler,
+            System::currentTimeMillis,
+            AfkManager::publishStateChangeEvent
+        );
     }
 
     AfkManager(
@@ -36,7 +45,12 @@ public final class AfkManager {
         PlatformScheduler scheduler,
         LongSupplier currentTimeMillis
     ) {
-        this(config::settings, scheduler, currentTimeMillis);
+        this(
+            config::settings,
+            scheduler,
+            currentTimeMillis,
+            AfkManager::publishStateChangeEvent
+        );
     }
 
     AfkManager(
@@ -44,12 +58,33 @@ public final class AfkManager {
         PlatformScheduler scheduler,
         LongSupplier currentTimeMillis
     ) {
+        this(
+            settingsSupplier,
+            scheduler,
+            currentTimeMillis,
+            AfkManager::publishStateChangeEvent
+        );
+    }
+
+    AfkManager(
+        Supplier<PluginSettings> settingsSupplier,
+        PlatformScheduler scheduler,
+        LongSupplier currentTimeMillis,
+        Consumer<PlayerAfkStateChangeEvent> stateChangeEventPublisher
+    ) {
         this.settingsSupplier = Objects.requireNonNull(
             settingsSupplier,
             "settingsSupplier"
         );
-        this.scheduler = scheduler;
-        this.currentTimeMillis = currentTimeMillis;
+        this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
+        this.currentTimeMillis = Objects.requireNonNull(
+            currentTimeMillis,
+            "currentTimeMillis"
+        );
+        this.stateChangeEventPublisher = Objects.requireNonNull(
+            stateChangeEventPublisher,
+            "stateChangeEventPublisher"
+        );
     }
 
     public void register(Player player) {
@@ -59,12 +94,25 @@ public final class AfkManager {
     public void unregister(Player player) {
         TrackedPlayer tracked = trackedPlayers.remove(player.getUniqueId());
         if (tracked != null) {
-            restorePlayerListName(player, tracked);
+            deactivateTrackedPlayer(player, tracked, false);
         }
     }
 
     public void recordInput(Player player, Input input) {
         if (!settings().enabled() || !PlayerInputActivity.isActive(input)) {
+            return;
+        }
+
+        recordActivity(player);
+    }
+
+    /**
+     * Records a real player action and clears AFK when necessary.
+     *
+     * @param player the player who acted
+     */
+    public void recordActivity(Player player) {
+        if (!settings().enabled()) {
             return;
         }
 
@@ -91,8 +139,16 @@ public final class AfkManager {
         }
     }
 
+    @Override
     public boolean isAfk(Player player) {
-        TrackedPlayer tracked = getOrRegister(player);
+        Objects.requireNonNull(player, "player");
+        return isAfk(player.getUniqueId());
+    }
+
+    @Override
+    public boolean isAfk(UUID playerId) {
+        Objects.requireNonNull(playerId, "playerId");
+        TrackedPlayer tracked = trackedPlayers.get(playerId);
         return tracked != null && tracked.afkState.isAfk();
     }
 
@@ -134,7 +190,7 @@ public final class AfkManager {
 
     public void applyConfiguration() {
         if (!settings().enabled()) {
-            clearTrackedPlayers();
+            clearTrackedPlayers(true);
             return;
         }
 
@@ -152,17 +208,35 @@ public final class AfkManager {
     }
 
     public void shutdown() {
-        clearTrackedPlayers();
+        clearTrackedPlayers(false);
     }
 
-    private void clearTrackedPlayers() {
-        Map<UUID, TrackedPlayer> playersToRestore = new HashMap<>(trackedPlayers);
-        trackedPlayers.clear();
+    private void clearTrackedPlayers(boolean publishActiveEvents) {
+        clearTrackedPlayers(Bukkit.getOnlinePlayers(), publishActiveEvents);
+    }
 
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            TrackedPlayer tracked = playersToRestore.get(player.getUniqueId());
+    void clearTrackedPlayers(
+        Iterable<? extends Player> onlinePlayers,
+        boolean publishActiveEvents
+    ) {
+        Map<UUID, TrackedPlayer> playersToRestore = new HashMap<>();
+        trackedPlayers.forEach((playerId, tracked) -> {
+            if (trackedPlayers.remove(playerId, tracked)) {
+                playersToRestore.put(playerId, tracked);
+            }
+        });
+
+        for (Player player : onlinePlayers) {
+            TrackedPlayer tracked = playersToRestore.remove(player.getUniqueId());
             if (tracked != null) {
-                scheduler.runForPlayer(player, () -> restorePlayerListName(player, tracked));
+                scheduler.runForPlayer(
+                    player,
+                    () -> deactivateTrackedPlayer(
+                        player,
+                        tracked,
+                        publishActiveEvents
+                    )
+                );
             }
         }
     }
@@ -227,7 +301,7 @@ public final class AfkManager {
 
         if (!settings().enabled()) {
             if (trackedPlayers.remove(playerId, tracked)) {
-                restorePlayerListName(player, tracked);
+                deactivateTrackedPlayer(player, tracked, true);
             }
             return null;
         }
@@ -266,9 +340,15 @@ public final class AfkManager {
                 );
                 return;
             }
+            if (!publishTransition(player, tracked, true, automaticTransition)) {
+                return;
+            }
             announce(player.getName(), true, automaticTransition);
         } else if (transition == AfkTransition.BECAME_ACTIVE) {
             restorePlayerListName(player, tracked);
+            if (!publishTransition(player, tracked, false, false)) {
+                return;
+            }
             announce(player.getName(), false, false);
         }
     }
@@ -276,6 +356,62 @@ public final class AfkManager {
     private boolean automaticTransitionAllowed() {
         PluginSettings settings = settings();
         return settings.enabled() && settings.automaticAfkEnabled();
+    }
+
+    private boolean transitionStillCurrent(
+        Player player,
+        TrackedPlayer tracked,
+        boolean afk
+    ) {
+        return settings().enabled()
+            && trackedPlayers.get(player.getUniqueId()) == tracked
+            && tracked.afkState.isAfk() == afk;
+    }
+
+    private boolean publishTransition(
+        Player player,
+        TrackedPlayer tracked,
+        boolean afk,
+        boolean automaticTransition
+    ) {
+        PlayerAfkStateChangeEvent event;
+        synchronized (tracked) {
+            if (
+                !transitionStillCurrent(player, tracked, afk)
+                    || tracked.afkEventPublished == afk
+            ) {
+                return false;
+            }
+            tracked.afkEventPublished = afk;
+            event = new PlayerAfkStateChangeEvent(
+                player,
+                afk,
+                automaticTransition
+            );
+        }
+
+        stateChangeEventPublisher.accept(event);
+        return true;
+    }
+
+    private void deactivateTrackedPlayer(
+        Player player,
+        TrackedPlayer tracked,
+        boolean publishActiveEvent
+    ) {
+        boolean shouldPublish;
+        synchronized (tracked) {
+            shouldPublish = publishActiveEvent && tracked.afkEventPublished;
+            tracked.afkEventPublished = false;
+            tracked.afkState.setAfk(false, currentTimeMillis.getAsLong());
+        }
+
+        restorePlayerListName(player, tracked);
+        if (shouldPublish && !isAfk(player.getUniqueId())) {
+            stateChangeEventPublisher.accept(
+                new PlayerAfkStateChangeEvent(player, false, false)
+            );
+        }
     }
 
     private void cancelAutomaticTransition(
@@ -428,5 +564,11 @@ public final class AfkManager {
 
     private PluginSettings settings() {
         return settingsSupplier.get();
+    }
+
+    private static void publishStateChangeEvent(
+        PlayerAfkStateChangeEvent event
+    ) {
+        Bukkit.getPluginManager().callEvent(event);
     }
 }

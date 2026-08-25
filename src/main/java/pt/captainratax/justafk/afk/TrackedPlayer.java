@@ -3,6 +3,7 @@ package pt.captainratax.justafk.afk;
 final class TrackedPlayer {
 
     final PlayerAfkState afkState;
+    boolean afkEventPublished;
     String originalPlayerListName;
     String lastAppliedPlayerListName;
     String lastDurationLabel;
