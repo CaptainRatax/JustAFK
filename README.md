@@ -1,5 +1,8 @@
 # JustAFK
 
+Downloads: [Modrinth](https://modrinth.com/plugin/justafk) ·
+[CurseForge](https://www.curseforge.com/minecraft/bukkit-plugins/justafk-plugin)
+
 JustAFK is a lightweight AFK plugin for Bukkit-compatible Minecraft servers. It
 marks players as AFK after a configurable period without recognized activity,
 provides manual and administrative commands, announces state changes, and can
