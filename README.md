@@ -3,6 +3,8 @@
 Downloads: [Modrinth](https://modrinth.com/plugin/justafk) ·
 [CurseForge](https://www.curseforge.com/minecraft/bukkit-plugins/justafk-plugin)
 
+Documentation: [justafk-docs.captainratax.com](https://justafk-docs.captainratax.com)
+
 JustAFK is a lightweight AFK plugin for Bukkit-compatible Minecraft servers. It
 marks players as AFK after a configurable period without recognized activity,
 provides manual and administrative commands, announces state changes, and can
@@ -179,7 +181,7 @@ The project uses Gradle 9.1 and a Java 25 toolchain. The release JAR is compiled
 against the official Paper 26.2 build 84 stable API and emits Java 21 bytecode.
 
 ```bash
-./gradlew build
+sh ./gradlew build
 ```
 
 The build also compiles the same source against Spigot 1.21.3, compares both
@@ -195,7 +197,7 @@ build/libs/JustAFK-1.2.0.jar
 Tests can be run separately with:
 
 ```bash
-./gradlew test
+sh ./gradlew test
 ```
 
 ## Licence
