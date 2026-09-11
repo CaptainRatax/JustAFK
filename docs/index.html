@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Official documentation for JustAFK, a configurable AFK plugin for Bukkit-compatible Minecraft servers.">
+  <meta name="theme-color" content="#10131a">
+  <meta property="og:title" content="JustAFK Documentation">
+  <meta property="og:description" content="Installation, configuration, commands, AFK behavior, and public API documentation for JustAFK.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://justafk-docs.captainratax.com">
+  <title>JustAFK Documentation</title>
+  <link rel="canonical" href="https://justafk-docs.captainratax.com">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify@4.13.1/lib/themes/dark.css">
+  <link rel="stylesheet" href="assets/css/theme.css">
+</head>
+<body>
+  <noscript>JustAFK documentation requires JavaScript because Docsify renders Markdown in the browser.</noscript>
+  <div id="app">Loading documentation…</div>
+
+  <script>
+    window.$docsify = {
+      name: 'JustAFK',
+      nameLink: '/JustAFK/#/',
+      repo: 'https://github.com/CaptainRatax/JustAFK',
+      basePath: '/JustAFK/',
+      homepage: 'README.md',
+      loadSidebar: true,
+      alias: {
+        '/.*/_sidebar.md': '/_sidebar.md'
+      },
+      coverpage: true,
+      onlyCover: false,
+      notFoundPage: true,
+      routerMode: 'hash',
+      auto2top: true,
+      maxLevel: 3,
+      subMaxLevel: 2,
+      topMargin: 24,
+      search: {
+        maxAge: 86400000,
+        paths: 'auto',
+        placeholder: 'Search the documentation',
+        noData: 'No results found',
+        depth: 4,
+        namespace: 'justafk-docs'
+      },
+      copyCode: {
+        buttonText: 'Copy',
+        errorText: 'Could not copy',
+        successText: 'Copied'
+      },
+      pagination: {
+        previousText: 'Previous',
+        nextText: 'Next',
+        crossChapter: true,
+        crossChapterText: true
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify@4.13.1/lib/docsify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify@4.13.1/lib/plugins/search.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify@4.13.1/lib/plugins/zoom-image.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code@2.1.1/dist/docsify-copy-code.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-pagination@2.10.1/dist/docsify-pagination.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-java.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-kotlin.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-powershell.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-yaml.min.js"></script>
+</body>
+</html>
