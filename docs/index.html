@@ -20,11 +20,16 @@
   <div id="app">Loading documentation…</div>
 
   <script>
+    const currentPath = window.location.pathname;
+    const docsBasePath = currentPath.endsWith('/')
+      ? currentPath
+      : currentPath.slice(0, currentPath.lastIndexOf('/') + 1);
+
     window.$docsify = {
       name: 'JustAFK',
-      nameLink: '/JustAFK/#/',
+      nameLink: docsBasePath + '#/',
       repo: 'https://github.com/CaptainRatax/JustAFK',
-      basePath: '/JustAFK/',
+      basePath: docsBasePath,
       homepage: 'README.md',
       loadSidebar: true,
       alias: {
