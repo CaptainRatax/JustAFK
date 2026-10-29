@@ -11,7 +11,7 @@ The current implementation includes:
 - Folia-aware scheduling; and
 - a read-only Bukkit service API and state-change event.
 
-?> These pages document JustAFK **1.2.0** for Paper, Purpur, Folia (where a server build exists), and Spigot/CraftBukkit **1.21.3 through 26.2**. The plugin JAR requires **Java 21 or newer**; the server itself may require a newer Java version.
+?> These pages document JustAFK **1.3.0** and its supported API range of **1.21.3 through 26.3**, with Paper 26.3 as the build target and compatibility compilation against Spigot 1.21.3. Purpur and Folia compatibility depends on available builds preserving the required APIs and schedulers. This update has not been tested on real servers; see the [compatibility limits](/getting-started/requirements). The plugin JAR requires **Java 21 or newer**; Paper 26.1 and newer require **Java 25**.
 
 ## Start here
 

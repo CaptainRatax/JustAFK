@@ -1,6 +1,6 @@
 # Installation
 
-?> JustAFK 1.2.0 supports the documented Paper, Purpur, Folia, Spigot, and CraftBukkit range from 1.21.3 through 26.2. The JAR requires Java 21 or newer, Paper 26.2 requires Java 25, and there are no plugin dependencies. Confirm the complete [requirements](/getting-started/requirements) before installing.
+?> JustAFK 1.3.0 targets the API range from 1.21.3 through 26.3 with the same JAR. Paper 26.3 and Spigot 1.21.3 are compilation targets; runtime tests on real servers remain required, including on Purpur and Folia where compatible builds exist. The JAR requires Java 21 or newer, Paper 26.1 and newer require Java 25, and there are no plugin dependencies. Confirm the complete [requirements and compatibility limits](/getting-started/requirements) before installing.
 
 ## 1. Obtain the plugin JAR
 
@@ -9,12 +9,12 @@ Download JustAFK from one of the distribution pages linked by the project:
 - [Modrinth](https://modrinth.com/plugin/justafk)
 - [CurseForge](https://www.curseforge.com/minecraft/bukkit-plugins/justafk-plugin)
 
-You can instead [build the JAR from source](/development/building). For the current release, the expected filename is `JustAFK-1.2.0.jar`.
+You can instead [build the JAR from source](/development/building). For version 1.3.0, the expected filename is `JustAFK-1.3.0.jar`.
 
 ## 2. Install the JAR
 
 1. Stop the Minecraft server.
-2. Place `JustAFK-1.2.0.jar` in the server's `plugins` directory.
+2. Place `JustAFK-1.3.0.jar` in the server's `plugins` directory.
 3. Start the server.
 
 No dependency plugins or database setup are required.

@@ -18,7 +18,7 @@ JustAFK declares `api-version: 1.21.3` and uses the movement-input API. Versions
 
 ### Java reports an unsupported class version
 
-The plugin JAR contains Java 21 bytecode. Run the server on Java 21 or newer and also satisfy the server software's own Java requirement. The repository specifically requires Java 25 when running Paper 26.2.
+The plugin JAR contains Java 21 bytecode. Run the server on Java 21 or newer and also satisfy the server software's own Java requirement. [Paper 26.1 and newer require Java 25](https://docs.papermc.io/paper/getting-started/).
 
 ### `config.yml` is malformed or invalid
 

@@ -14,19 +14,19 @@ The project uses Gradle 9.1 and a Java 25 toolchain. The resulting plugin classe
 From the repository root on Linux or macOS:
 
 ```bash
-sh ./gradlew build
+./gradlew clean build
 ```
 
 From PowerShell on Windows:
 
 ```powershell
-.\gradlew.bat build
+.\gradlew.bat clean build
 ```
 
 The current artifact is written to:
 
 ```text
-build/libs/JustAFK-1.2.0.jar
+build/libs/JustAFK-1.3.0.jar
 ```
 
 The version comes from `build.gradle.kts` and is expanded into `plugin.yml` during resource processing, so a later project version produces the corresponding filename.
@@ -36,16 +36,18 @@ The version comes from `build.gradle.kts` and is expanded into `plugin.yml` duri
 In addition to compilation and unit tests, the configured `check` lifecycle:
 
 - compiles the main source against the minimum Spigot 1.21.3 API;
-- compiles against the primary Paper 26.2 build 84 stable API;
+- compiles against the fixed Paper 26.3 build 230 stable API (`26.3.build.230-stable`);
 - requires both compilation outputs to contain identical class bytecode;
 - verifies the JAR's plugin version and `api-version: 1.21.3` metadata;
 - verifies Java 21 class-file bytecode; and
 - verifies that no runtime dependencies are declared.
 
+These checks establish compilation and bytecode compatibility at the API endpoints. They do not prove runtime behavior on every server version or fork. No real-server tests were performed for this update; see the [manual checks and compatibility limits](/getting-started/requirements).
+
 Run only the unit tests with:
 
 ```bash
-sh ./gradlew test
+./gradlew test
 ```
 
 ## Source layout
