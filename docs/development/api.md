@@ -13,7 +13,7 @@ This repository does not configure Maven publication or declare public dependenc
 
 ```kotlin
 dependencies {
-    compileOnly(files("libs/JustAFK-1.2.0.jar"))
+    compileOnly(files("libs/JustAFK-1.3.0.jar"))
 }
 ```
 

@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "pt.captainratax"
-version = "1.2.0"
+version = "1.3.0"
 description = "A lightweight and configurable AFK plugin for Minecraft servers."
 
 repositories {
@@ -37,7 +37,7 @@ configurations.named("testCompileClasspath") {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:26.2.build.84-stable")
+    compileOnly("io.papermc.paper:paper-api:26.3.build.230-stable")
     add(
         minimumSpigotApi.name,
         "org.spigotmc:spigot-api:1.21.3-R0.1-SNAPSHOT"
@@ -77,7 +77,7 @@ val compileMinimumJava by tasks.registering(JavaCompile::class) {
 }
 
 val verifyApiBytecodeParity by tasks.registering {
-    description = "Compares the Paper 26.2 and Spigot 1.21.3 class files."
+    description = "Compares the Paper 26.3 and Spigot 1.21.3 class files."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     dependsOn(tasks.compileJava, compileMinimumJava)
 

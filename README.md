@@ -42,30 +42,36 @@ as `[AFK 0m]`.
 
 | Server | Status |
 | --- | --- |
-| Paper 1.21.3–26.2 | Supported; Paper 26.2 is the primary build target |
-| Purpur 1.21.3–26.2 | Supported Paper fork |
-| Folia 1.21.3–26.2 | Supported where Folia publishes a server build; uses Folia schedulers |
-| Spigot / CraftBukkit 1.21.3–26.2 | Compatibility-compiled against Spigot 1.21.3 |
+| Paper 1.21.3–26.3 | API-compatible; Paper 26.3 is the primary build target |
+| Purpur 1.21.3–26.3 | Expected compatibility as a Paper fork, where builds exist |
+| Folia 1.21.3–26.3 | Conditional on available server builds and compatible Folia schedulers |
+| Spigot / CraftBukkit 1.21.3–26.3 | Bukkit API compatibility; compatibility-compiled against Spigot 1.21.3 |
 | Sponge | Not supported |
 | BungeeCord / Velocity / Waterfall | Not supported; these are proxy platforms |
 
 Sponge uses a different plugin API and lifecycle. Supporting it cleanly would
 require a separate platform module rather than a small compatibility layer.
 
-Version 1.2.0 is built against Paper 26.2 and compatibility-compiled against
+Version 1.3.0 is built against Paper 26.3 and compatibility-compiled against
 Spigot 1.21.3. Both compilations must produce identical class files before the
 build passes. The 1.21.3 minimum is required because this version uses the
 movement-input API rather than inferring activity from changes in position.
 
+This is the supported API range for the same JAR. Compilation, bytecode parity,
+and unit tests do not establish runtime compatibility on every server or
+intermediate version. No real-server tests were performed for this update;
+Purpur and Folia compatibility remains conditional on their available builds
+preserving the APIs and scheduler contracts used by JustAFK.
+
 The JAR uses Java 21 bytecode. Servers may require a newer Java runtime for
-their own Minecraft version; Paper 26.2 requires Java 25.
+their own Minecraft version; [Paper 26.1 and newer require Java 25](https://docs.papermc.io/paper/getting-started/).
 
 `api-version: 1.21.3` makes servers below the supported baseline refuse to load
 the plugin instead of failing later when the movement-input API is used.
 
 ## Installation
 
-1. Download or build `JustAFK-1.2.0.jar`.
+1. Download or build `JustAFK-1.3.0.jar`.
 2. Place the JAR in the server's `plugins` directory.
 3. Restart the server.
 4. Edit `plugins/JustAFK/config.yml` if needed, then run `/justafk reload`.
@@ -178,10 +184,11 @@ YAML implementation may discard comments during a save.
 ## Building
 
 The project uses Gradle 9.1 and a Java 25 toolchain. The release JAR is compiled
-against the official Paper 26.2 build 84 stable API and emits Java 21 bytecode.
+against the fixed official Paper 26.3 build 230 stable API
+(`26.3.build.230-stable`) and emits Java 21 bytecode.
 
 ```bash
-sh ./gradlew build
+./gradlew clean build
 ```
 
 The build also compiles the same source against Spigot 1.21.3, compares both
@@ -191,13 +198,13 @@ checks that no runtime dependencies are declared.
 The plugin JAR will be created at:
 
 ```text
-build/libs/JustAFK-1.2.0.jar
+build/libs/JustAFK-1.3.0.jar
 ```
 
 Tests can be run separately with:
 
 ```bash
-sh ./gradlew test
+./gradlew test
 ```
 
 ## Licence

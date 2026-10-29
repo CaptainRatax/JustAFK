@@ -2,6 +2,8 @@
 
 JustAFK does not contain an automatic updater or update checker. Replace the JAR manually when moving to a newer release.
 
+Version 1.3.0 updates the compile target to Paper 26.3 while retaining the 1.21.3 API baseline and Java 21 bytecode. It requires no configuration migration and leaves AFK behavior, commands, permissions, messages, and the public API unchanged. Review the [compatibility limits](/getting-started/requirements) and test the intended server build before deployment.
+
 ## Update procedure
 
 1. Stop the server completely.
